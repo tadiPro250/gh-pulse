@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
     res.end('data: [DONE]\n\n');
   });
 });
-await new Promise((r) => server.listen(0, r));
+await new Promise((r) => server.listen(0, '127.0.0.1', r));
 
 class Stdout extends EventEmitter {
   columns = COLUMNS;
@@ -71,7 +71,7 @@ class Stdin extends EventEmitter {
   unref() {}
 }
 
-// Start from the defaults (build.mjs points GH_PULSE_HOME at a temp folder), so
+// Start from the defaults (run.mjs points GH_PULSE_HOME at a temp folder), so
 // nobody's real config or seen-state shows up in the recording.
 const config = structuredClone(DEFAULTS);
 Object.assign(config, { refreshSeconds: 0, theme: 'pink', mouse: false, repos: [], orgs: [], hiddenSections: [] });
@@ -119,11 +119,13 @@ await press('tab', 400);
 await type('what should I do first?');
 snap(500);
 stdin.write(KEYS.enter);
+const answered = () => stdout.last.includes('Merge it.') && !stdout.last.includes('esc stops');
 const end = Date.now() + 15000;
-while (Date.now() < end && !(stdout.last.includes('Merge it.') && !stdout.last.includes('esc stops'))) {
+while (Date.now() < end && !answered()) {
   await sleep(90);
   snap(90);
 }
+if (!answered()) throw new Error(`the chat answer never finished\n${stdout.last}`);
 snap(3800);
 await press('esc', 500);
 

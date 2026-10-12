@@ -157,58 +157,66 @@ def main():
     baseline = (ch - args.size) // 2
 
     tmp = tempfile.mkdtemp(prefix="pulse-demo-")
-    listing = []
-    for n, f in enumerate(data["frames"]):
-        img = Image.new("RGB", (width, height), BG)
-        d = ImageDraw.Draw(img)
-        # Window chrome: a title bar with the three traffic-light dots.
-        d.rectangle([0, 0, width, bar], fill=CHROME)
-        for i, dot in enumerate([(243, 139, 168), (249, 226, 175), (166, 227, 161)]):
-            cx = pad + i * 20
-            d.ellipse([cx, bar // 2 - 6, cx + 12, bar // 2 + 6], fill=dot)
-        title = "pulse"
-        d.text(((width - regular.getlength(title)) / 2, bar // 2 - ascent // 2 - 2), title, font=regular, fill=(127, 132, 156))
+    out = os.path.abspath(args.out)
+    partial = out + ".partial.gif"  # beside the target, so the final rename stays on one drive
+    try:
+        listing = []
+        for n, f in enumerate(data["frames"]):
+            img = Image.new("RGB", (width, height), BG)
+            d = ImageDraw.Draw(img)
+            # Window chrome: a title bar with the three traffic-light dots.
+            d.rectangle([0, 0, width, bar], fill=CHROME)
+            for i, dot in enumerate([(243, 139, 168), (249, 226, 175), (166, 227, 161)]):
+                cx = pad + i * 20
+                d.ellipse([cx, bar // 2 - 6, cx + 12, bar // 2 + 6], fill=dot)
+            title = "pulse"
+            d.text(((width - regular.getlength(title)) / 2, bar // 2 - ascent // 2 - 2), title, font=regular, fill=(127, 132, 156))
 
-        for y, line in enumerate(parse(f["frame"], cols, rows)):
-            py = bar + pad + y * ch
-            for x, (c, fg, bg, is_bold, is_dim) in enumerate(line):
-                px = pad + x * cw
-                if bg:
-                    d.rectangle([px, py, px + cw, py + ch], fill=bg)
-                if c == " ":
-                    continue
-                color = fg or FG
-                if is_dim:
-                    color = mix(color, bg or BG, 0.45)
-                # Box-drawing lines span the whole cell, so draw them instead of
-                # using the glyph (which leaves gaps with the taller line height).
-                if c == "│":
-                    d.line([px + cw // 2, py, px + cw // 2, py + ch], fill=color, width=1)
-                    continue
-                if c == "─":
-                    d.line([px, py + ch // 2, px + cw, py + ch // 2], fill=color, width=1)
-                    continue
-                font = (bold if is_bold else regular) if ord(c) in has_glyph else fallback
-                d.text((px, py + baseline), c, font=font, fill=color)
-        path = os.path.join(tmp, f"{n:04d}.png")
-        img.save(path)
-        listing.append(f"file '{path}'\nduration {f['ms'] / 1000:.3f}\n")
-    listing.append(f"file '{path}'\n")  # concat needs the last file twice to honor its duration
+            for y, line in enumerate(parse(f["frame"], cols, rows)):
+                py = bar + pad + y * ch
+                for x, (c, fg, bg, is_bold, is_dim) in enumerate(line):
+                    px = pad + x * cw
+                    if bg:
+                        d.rectangle([px, py, px + cw, py + ch], fill=bg)
+                    if c == " ":
+                        continue
+                    color = fg or FG
+                    if is_dim:
+                        color = mix(color, bg or BG, 0.45)
+                    # Box-drawing lines span the whole cell, so draw them instead of
+                    # using the glyph (which leaves gaps with the taller line height).
+                    if c == "│":
+                        d.line([px + cw // 2, py, px + cw // 2, py + ch], fill=color, width=1)
+                        continue
+                    if c == "─":
+                        d.line([px, py + ch // 2, px + cw, py + ch // 2], fill=color, width=1)
+                        continue
+                    font = (bold if is_bold else regular) if ord(c) in has_glyph else fallback
+                    d.text((px, py + baseline), c, font=font, fill=color)
+            path = os.path.join(tmp, f"{n:04d}.png")
+            img.save(path)
+            listing.append(f"file '{path}'\nduration {f['ms'] / 1000:.3f}\n")
+        listing.append(f"file '{path}'\n")  # concat needs the last file twice to honor its duration
 
-    list_file = os.path.join(tmp, "list.txt")
-    with open(list_file, "w", encoding="utf-8") as fh:
-        fh.write("".join(listing).replace("\\", "/"))
+        list_file = os.path.join(tmp, "list.txt")
+        with open(list_file, "w", encoding="utf-8") as fh:
+            fh.write("".join(listing).replace("\\", "/"))
 
-    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    subprocess.run(
-        [
-            "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list_file,
-            "-vf", "split[a][b];[a]palettegen=max_colors=96:stats_mode=full[p];[b][p]paletteuse=dither=none",
-            "-fps_mode", "vfr", "-loop", "0", args.out,
-        ],
-        check=True,
-    )
-    shutil.rmtree(tmp, ignore_errors=True)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        subprocess.run(
+            [
+                "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list_file,
+                "-vf", "split[a][b];[a]palettegen=max_colors=96:stats_mode=full[p];[b][p]paletteuse=dither=none",
+                "-fps_mode", "vfr", "-loop", "0", partial,
+            ],
+            check=True,
+        )
+        # Only replace the existing GIF once ffmpeg has fully succeeded.
+        os.replace(partial, out)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        if os.path.exists(partial):
+            os.remove(partial)
     print(f"{args.out}: {width}x{height}, {len(data['frames'])} frames, {os.path.getsize(args.out) / 1e6:.2f} MB")
 
 

@@ -145,6 +145,28 @@ const DETAIL = {
   statusCheckRollup: [{ name: 'test', conclusion: 'SUCCESS' }, { name: 'lint', conclusion: 'SUCCESS' }],
 };
 
+// acme/api#551 has the full review story; any other item gets its own title,
+// author and status from the dashboard data, so screens never mix two items.
+function detailFor(repo, number) {
+  if (repo === 'acme/api' && number === 551) return DETAIL;
+  const sections = ['review', 'reviewed', 'mine', 'assigned', 'mentions'];
+  const node = sections.flatMap((k) => DASHBOARD[k].nodes).find((n) => n.repository.nameWithOwner === repo && n.number === number);
+  const ci = node?.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
+  return {
+    ...DETAIL,
+    number,
+    title: node?.title ?? `${repo}#${number}`,
+    author: node?.author ?? { login },
+    url: node?.url ?? `https://github.com/${repo}/pull/${number}`,
+    body: '',
+    reviews: [],
+    headRefName: `topic-${number}`,
+    reviewDecision: node?.reviewDecision ?? null,
+    mergeStateStatus: node?.mergeStateStatus ?? 'BLOCKED',
+    statusCheckRollup: [{ name: 'test', conclusion: ci === 'FAILURE' ? 'FAILURE' : 'SUCCESS' }],
+  };
+}
+
 const THREADS = {
   repository: {
     pullRequest: {
@@ -170,7 +192,7 @@ export async function gh(args) {
   const cmd = args.join(' ');
   if (cmd.startsWith('auth status')) return JSON.stringify(AUTH);
   if (cmd.startsWith('api notifications') || /^api repos\/.+\/notifications/.test(cmd)) return JSON.stringify(NOTIFICATIONS);
-  if (/^(pr|issue) view/.test(cmd)) return JSON.stringify({ ...DETAIL, number: Number(args[2]) });
+  if (/^(pr|issue) view/.test(cmd)) return JSON.stringify(detailFor(args[args.indexOf('-R') + 1], Number(args[2])));
   if (cmd.startsWith('pr diff')) return '--- a/src/webhooks/validate.ts\n+++ b/src/webhooks/validate.ts\n@@ -40,3 +40,4 @@\n+  const repo = payload.repository.full_name;\n';
   if (cmd.startsWith('repo view')) return JSON.stringify({ squashMergeAllowed: true, mergeCommitAllowed: true, rebaseMergeAllowed: false, nameWithOwner: 'acme/api' });
   return '';
