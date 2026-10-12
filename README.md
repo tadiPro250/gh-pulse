@@ -5,6 +5,7 @@
 Reviews you owe, PRs that need fixing, issues assigned to you, mentions and notifications, all in one keyboard-driven (and mouse-friendly) screen. It's built on the official [`gh`](https://cli.github.com) CLI, so there's no extra GitHub login or token to manage. You can also bring any AI you already use (Claude, ChatGPT, Gemini, a local model, or a coding agent) to explain PRs, triage your day, or fix your PRs for you.
 
 [![CI](https://github.com/tadiPro250/gh-pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/tadiPro250/gh-pulse/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/gh-pulse)](https://www.npmjs.com/package/gh-pulse)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
 
@@ -66,14 +67,16 @@ pulse works on **macOS, Linux and Windows**.
 
 ## Install
 
-### Option 1: straight from GitHub with npm (recommended)
+### Option 1: from npm (recommended)
 
 ```sh
-npm install -g github:tadiPro250/gh-pulse
+npm install -g gh-pulse
 pulse
 ```
 
-npm downloads the repo, builds it, and puts a `pulse` command on your PATH. Run the same command again to update.
+This puts a `pulse` command on your PATH. To update, run `npm update -g gh-pulse`.
+
+Want the latest unreleased changes? Install straight from GitHub instead: `npm install -g github:tadiPro250/gh-pulse`.
 
 ### Option 2: from source
 
@@ -98,7 +101,7 @@ gh pulse
 ### Uninstall
 
 ```sh
-npm uninstall -g gh-pulse     # options 1 and 2
+npm uninstall -g gh-pulse     # options 1 and 2 (`npm unlink -g gh-pulse` if you used npm link)
 gh extension remove pulse     # option 3
 ```
 
