@@ -9,20 +9,9 @@ Reviews you owe, PRs that need fixing, issues assigned to you, mentions and noti
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
 
-```
- ◆ pulse               │  Good evening, @you
- @you                  │  1 to fix   2 to review   8 issues   32 unread
-                       │ ── Next up ────────────────────────────────────────────────────────────
- 1 Home                │  ❯ fix       api#551    Validate webhook payloads   changes requested
- 2 Review           2  │    review    web#90     Bump vite to 7              waiting 3d · @bob
- 3 Follow-up        0  │    issue     api#545    Retry failed deliveries     due in 3d
- 4 My PRs           7  │ ── Ask pulse ──────────────────────────────────────── Claude Code
- 5 Issues           8  │  you › what should I do first?
- 6 Mentions         3  │  ai ›  1. api#551 — address @sam's requested changes (null check in …
- 7 Inbox           32  │
- 8 Settings            │  1 What first?  2 Inbox digest  3 What's blocked?
- AI  Claude Code       │  › ask about your day…
-```
+![pulse demo: the Home dashboard, asking the AI what to do first, the AI menu on a PR with requested changes, handing it to a coding agent, and the grouped inbox](https://raw.githubusercontent.com/tadiPro250/gh-pulse/main/docs/demo.gif)
+
+<sub>The demo uses made-up data for a fictional `acme` org. Regenerate it with `npm run demo`.</sub>
 
 ## Contents
 
