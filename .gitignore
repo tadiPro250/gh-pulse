@@ -6,4 +6,3 @@ test/.home/
 .DS_Store
 .env.local
 .claude/
-scripts/demo/.out/
