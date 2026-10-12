@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+// Entry point when installed as a gh extension: `gh extension install .` → `gh pulse`
+import('./bin/pulse.js');

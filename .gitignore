@@ -1,0 +1,8 @@
+node_modules/
+dist/
+test/.out/
+test/.home/
+*.log
+.DS_Store
+.env.local
+.claude/
