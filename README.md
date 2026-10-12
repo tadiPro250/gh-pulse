@@ -11,7 +11,7 @@ Reviews you owe, PRs that need fixing, issues assigned to you, mentions and noti
 
 ![pulse demo: the Home dashboard, asking the AI what to do first, the AI menu on a PR with requested changes, handing it to a coding agent, and the grouped inbox](https://raw.githubusercontent.com/tadiPro250/gh-pulse/main/docs/demo.gif)
 
-<sub>The demo uses made-up data for a fictional `acme` org. Regenerate it with `npm run demo`.</sub>
+<sub>The demo uses made-up data for a fictional `acme` org.</sub>
 
 ## Contents
 
