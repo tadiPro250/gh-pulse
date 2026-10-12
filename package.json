@@ -37,7 +37,8 @@
     "dev": "npm run build -- --watch",
     "prepare": "npm run build",
     "test:build": "esbuild test/tui-smoke.jsx test/handoff.jsx test/setup.jsx --bundle --platform=node --format=esm --packages=external --jsx=automatic --outdir=test/.out --log-level=warning",
-    "test": "npm run test:build && node test/actions.test.js && node --env-file=test/.env test/.out/tui-smoke.js && node --env-file=test/.env test/.out/handoff.js && node --env-file=test/.env test/.out/setup.js"
+    "test": "npm run test:build && node test/actions.test.js && node --env-file=test/.env test/.out/tui-smoke.js && node --env-file=test/.env test/.out/handoff.js && node --env-file=test/.env test/.out/setup.js",
+    "demo": "node scripts/demo/run.mjs"
   },
   "engines": {
     "node": ">=22"

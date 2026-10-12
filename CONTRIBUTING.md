@@ -58,6 +58,17 @@ $env:GH_PULSE_HOME="$env:TEMP\pulse-dev"; node bin/pulse.js   # PowerShell
 3. Link it in **Settings → AI**, press `t` to test the connection, and try both chat and an agent task.
 4. In the PR, say which version of the tool you tested with.
 
+## Updating the demo GIF
+
+If your change affects what's shown in `docs/demo.gif`, regenerate it:
+
+```sh
+pip install pillow fonttools    # once; you also need ffmpeg on your PATH
+npm run demo
+```
+
+`scripts/demo/` runs the real UI against made-up data (`fake-gh.js`, a fictional `acme` org) and a mock AI, so no GitHub login is needed and nothing personal ends up in the GIF. The steps it takes are in `record.jsx`; colors and fonts are in `render.py`.
+
 ## Pull requests
 
 - Keep each PR focused on one thing, and match the style of the code around it (small functions, short comments explaining *why*).
