@@ -33,6 +33,25 @@ export function wrap(text, width) {
   return out;
 }
 
+// Breaks typed text into lines of at most `width`, at spaces when it can.
+// Unlike wrap() above it keeps every space and empty line, so it matches what
+// was typed and the cursor lands where the next character will go.
+export function wrapInput(text, width) {
+  width = Math.max(1, width);
+  const out = [];
+  for (const para of text.split('\n')) {
+    let rest = para;
+    while (rest.length > width) {
+      const space = rest.lastIndexOf(' ', width - 1); // the space stays on this line
+      const cut = space > 0 ? space + 1 : width;
+      out.push(rest.slice(0, cut));
+      rest = rest.slice(cut);
+    }
+    out.push(rest);
+  }
+  return out;
+}
+
 function cleanMarkdown(md) {
   return (md ?? '')
     .replace(/\r/g, '')

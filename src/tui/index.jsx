@@ -4,11 +4,12 @@ import { chatProviderId, resolve } from '../ai/index.js';
 import { fetchDetail, fetchDiff } from '../detail.js';
 import { currentRepo, ghInteractive } from '../gh.js';
 import { fetchDashboard, fetchNotifications, markThreadsRead } from '../github.js';
-import { loadState, mergeSeen, saveConfig, saveState } from '../state.js';
+import { isArchived, loadState, mergeSeen, saveConfig, saveState, setArchived } from '../state.js';
 import { copyToClipboard, openUrl } from '../system.js';
 import { applyTheme } from '../theme.js';
 import { LIST_SECTIONS, SECTION_KEYS, buildView, notificationRows } from '../view.js';
 import { AiScreen } from './ai.jsx';
+import { ComposeScreen } from './compose.jsx';
 import { HandoffScreen } from './handoff.jsx';
 import { HomeScreen } from './home.jsx';
 import { ListScreen } from './list.jsx';
@@ -105,6 +106,7 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
   const [visited, setVisited] = useState(() => new Set());
   const [toastMsg, setToastMsg] = useState(null);
   const [confirm, setConfirm] = useState(null);
+  const [archived, setArchivedMap] = useState(() => (persist ? loadState().archived : {}));
   const cache = useRef(new Map());
 
   const toastTimer = useRef(null);
@@ -118,8 +120,9 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
   const tabs = useMemo(() => {
     if (!dash.data) return LIST_SECTIONS.map(([key, short]) => ({ key, short, title: short, rows: [], empty: '' }));
     const built = buildView(dash.data, { all: ui.showAll, singleRepo, seen: dash.seen, settings });
-    return [...built, { key: 'inbox', title: 'Notifications', short: 'Inbox', rows: notificationRows(dash.notifications ?? []), empty: 'inbox zero' }];
-  }, [dash.data, dash.notifications, dash.seen, ui.showAll, singleRepo, settings]);
+    const all = [...built, { key: 'inbox', title: 'Notifications', short: 'Inbox', rows: notificationRows(dash.notifications ?? []), empty: 'inbox zero' }];
+    return all.map((t) => ({ ...t, rows: t.rows.filter((r) => !isArchived(archived, r)) }));
+  }, [dash.data, dash.notifications, dash.seen, ui.showAll, singleRepo, settings, archived]);
 
   const hidden = config.hiddenSections ?? [];
   const sections = useMemo(
@@ -208,10 +211,29 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
       // …or a coding agent takes a task.
       case 'agent':
         return push({ type: 'handoff', item, task: extra?.task, notes: extra?.notes });
-      case 'merged':
+      case 'compose':
+        return push({ type: 'compose', item });
+      case 'commented':
+        cache.current.delete(`detail:${item.repo}#${item.number}`);
+        setStack((s) => s.slice(0, -1));
+        return void dash.reload();
+      // Merged or closed: it leaves the lists, so drop its screens too.
+      case 'changed':
         cache.current.delete(`detail:${item.repo}#${item.number}`);
         setStack((s) => s.filter((x) => x.item?.url !== item.url));
         return void dash.reload();
+      case 'archive':
+        setArchivedMap((a) => setArchived(a, [item.url], true, { persist }));
+        setStack((s) => s.filter((x) => x.item?.url !== item.url));
+        return toast(`archived ${item.ref} · it comes back when there's new activity`, 'good');
+      case 'unarchive':
+        setArchivedMap((a) => setArchived(a, [item.url], false, { persist }));
+        return toast(`unarchived ${item.ref}`, 'good');
+      case 'unarchiveAll': {
+        const n = Object.keys(archived).length;
+        setArchivedMap((a) => setArchived(a, Object.keys(a), false, { persist }));
+        return toast(n ? `restored ${n} archived item${n > 1 ? 's' : ''}` : 'nothing is archived', 'good');
+      }
       case 'diff':
         if (item.kind !== 'pr') return toast('diff is only for pull requests', 'warn');
         return push({ type: 'diff', item });
@@ -278,7 +300,10 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
   else if (top?.type === 'diff') screen = <DiffScreen key={top.item.url} {...common} item={top.item} getDiff={getDiff} />;
   else if (top?.type === 'ai')
     screen = <AiScreen key={`${top.item.url}:${top.prompt ?? ''}`} {...common} item={top.item} login={login} config={config} getDetail={getDetail} getDiff={getDiff} initialPrompt={top.prompt} providerId={top.providerId} />;
-  else if (top?.type === 'menu') screen = <MenuScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} focus={top.focus} toast={toast} />;
+  else if (top?.type === 'menu')
+    screen = <MenuScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} focus={top.focus} archived={isArchived(archived, top.item)} toast={toast} />;
+  else if (top?.type === 'compose')
+    screen = <ComposeScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} getDiff={getDiff} toast={toast} />;
   else if (top?.type === 'handoff')
     screen = (
       <HandoffScreen
@@ -298,7 +323,7 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
   else if (top?.type === 'help') screen = <HelpScreen {...common} />;
   else if (current.key === 'home') screen = <HomeScreen {...common} tabs={tabs} hidden={hidden} login={login} config={config} loading={dash.loading} hasData={Boolean(dash.data)} />;
   else if (current.key === 'settings')
-    screen = <SettingsScreen {...common} config={config} updateConfig={updateConfig} onSwitched={onSwitched} suspendTerminal={suspendTerminal} toast={toast} />;
+    screen = <SettingsScreen {...common} config={config} updateConfig={updateConfig} archivedCount={Object.keys(archived).length} onSwitched={onSwitched} suspendTerminal={suspendTerminal} toast={toast} />;
   else
     screen = (
       <ListScreen {...common} key={current.key} tab={current} ui={ui} setUi={setUi} config={config} visited={visited} loading={dash.loading} error={dash.error} hasData={Boolean(dash.data)} />

@@ -1,7 +1,7 @@
 import { gh, graphql } from './gh.js';
 
 const ISSUE_FIELDS = 'number,title,body,author,state,labels,assignees,milestone,comments,createdAt,updatedAt,url';
-const PR_FIELDS = `${ISSUE_FIELDS},isDraft,reviewRequests,reviews,files,additions,deletions,changedFiles,baseRefName,headRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`;
+const PR_FIELDS = `${ISSUE_FIELDS},isDraft,isCrossRepository,reviewRequests,reviews,files,additions,deletions,changedFiles,baseRefName,headRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`;
 
 // Full body, comments, reviews, files and checks for one issue or PR.
 export async function fetchDetail(item) {
@@ -53,4 +53,19 @@ export function summarizeChecks(rollup) {
   const failed = checks.filter((c) => ['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED'].includes(c.result));
   const pending = checks.filter((c) => ['PENDING', 'QUEUED', 'IN_PROGRESS', 'EXPECTED', 'WAITING'].includes(c.result));
   return { total: checks.length, failed, pending, passed: checks.length - failed.length - pending.length };
+}
+
+const REVIEWERS_QUERY = `
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) { latestReviews(first: 50) { nodes { author { __typename login } } } }
+  }
+}`;
+
+// Logins of the people (not apps or bots) who have reviewed a PR.
+export async function fetchHumanReviewers(item) {
+  const [owner, name] = item.repo.split('/');
+  const { data } = await graphql(REVIEWERS_QUERY, { owner, name, number: item.number });
+  const nodes = data.repository?.pullRequest?.latestReviews?.nodes ?? [];
+  return nodes.filter((r) => r.author?.__typename === 'User').map((r) => r.author.login);
 }

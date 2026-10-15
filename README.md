@@ -36,7 +36,7 @@ Reviews you owe, PRs that need fixing, issues assigned to you, mentions and noti
 
 - **One place for your GitHub to-dos**: review requests, your PRs ranked by what's blocking them, assigned issues with due dates, mentions, and a grouped notification inbox.
 - **Knows what changed**: PRs you reviewed that have new activity show up under *Follow-up*, and items you've already seen are marked as such.
-- **Act without leaving the terminal**: open details, read diffs, check out branches, merge ready PRs (squash / merge / rebase) and mark notifications read.
+- **Act without leaving the terminal**: open details, read diffs, check out branches, merge ready PRs (squash / merge / rebase, optionally deleting the branch), comment, request a re-review, convert to draft, close, archive and mark notifications read.
 - **AI that sees your dashboard**: ask "what should I do first?" or "what's blocking my PRs?" and get answers grounded in your real data.
 - **Hand work to a coding agent**: send "address the requested changes", "fix failing CI", "resolve conflicts" or "implement this issue" to Claude Code, Codex, Gemini CLI and others. The agent runs in your local clone, in your terminal, and commits without pushing, so you review before anything leaves your machine.
 - **Multiple GitHub accounts**: switch between every account `gh` is logged into.
@@ -186,12 +186,31 @@ Only Claude Code's flags have been verified by pulse. For the other CLIs, the de
 | Item | Suggestions |
 | --- | --- |
 | Your PR with problems | **agent:** resolve conflicts / work on the requested changes / fix failing checks · **ask:** what's blocking it, explain it, summarize the review |
-| Your PR that's ready | **merge** (`←→` picks squash / merge / rebase from what the repo allows, `⏎` twice to confirm) · **ask:** explain it |
+| Your PR that's ready | **merge** (`←→` picks squash / merge / rebase from what the repo allows, `b` also deletes the branch when that's safe, `⏎` twice to confirm) · **ask:** explain it |
 | Someone else's PR | **ask:** review it, summarize the changes, draft a review comment |
 | Issue | **ask:** explain it, what do I need to do, summarize the discussion, draft a reply · **agent:** work on it (listed higher when it's assigned to you) |
-| Always | **custom prompt:** type your own; `tab` chooses whether the chat answers it or an agent works on it |
+| Always | **custom prompt:** type your own (it wraps onto more lines as you type); `tab` chooses whether the chat answers it or an agent works on it |
 
 *ask* opens the chat with that question already asked. *agent* opens the agent screen described below. `m` on a ready PR, in a list or the detail view, opens the menu on Merge.
+
+Below the AI suggestions are things you do yourself:
+
+| Action | When | What it does |
+| --- | --- | --- |
+| **Leave a comment** | any PR or issue | opens the [comment composer](#comments) |
+| **Request a re-review** | your open PR | asks the people who already reviewed to look again (`←→` picks one person or everyone; bots and apps are skipped) |
+| **Convert to draft** / **Mark ready for review** | your open PR | `gh pr ready --undo` / `gh pr ready` |
+| **Close this PR** | your open PR | closes without merging (`⏎` twice); it can be reopened on GitHub |
+| **Delete the branch** | a merged PR | only when it's safe: the branch is in the same repo (not a fork), isn't the default or protected, and no other open PR uses it. Only the branch on GitHub is deleted, and the PR page can restore it. |
+| **Archive** | any PR or issue | hides it from pulse until there's new activity on it, like archiving mail. Settings → Dashboard → *Archived items* brings them all back. Nothing changes on GitHub. |
+
+### Comments
+
+The composer is a multi-line editor (`⏎` is a new line, markdown works, `ctrl+p` previews it, `ctrl+s` posts).
+
+- **Attach** (`tab` to the field): a path to a `.md` or `.txt` file adds its text; other text files (logs, diffs, code) go in as a code block; an image URL goes in as an image. Dragging a file into the terminal pastes its path.
+- **Ask AI**: say what the comment should say and `⏎`. The AI sees the PR or issue (and the diff) and drafts it, or rewrites what you've written while keeping your points. `ctrl+z` puts your text back.
+- **Local images**: GitHub has no API for uploading images to a comment, so pulse can't post them. Use an image URL, or `ctrl+b` to copy what you wrote and open the page in your browser, then paste it and drag the images in.
 
 ### Agent
 
@@ -205,7 +224,7 @@ Picking an agent suggestion (or a custom prompt sent to an agent) opens a screen
   - *Implement this issue*: issue body and discussion; the agent works on a `pulse/issue-<n>` branch
   - *Custom prompt*: your own instructions, with the item attached as context
 - **Workspace**: your local clone, found automatically in your clone folders. `C` clones the repo if you don't have it.
-- **Notes**: extra instructions (just type).
+- **Notes**: extra instructions (just type; long notes wrap).
 
 A live preview shows the exact prompt. `⏎` checks out the PR branch (`gh pr checkout`) and starts the agent **interactively in your terminal**, inside the clone. You watch it work, approve its actions, and pulse comes back when it exits. The agent is told to commit but **not push**, so you always review before pushing.
 
@@ -336,11 +355,12 @@ pulse is plain JavaScript (ES modules) with an [Ink](https://github.com/vadimdem
 | `src/view.js`, `src/model.js` | turns GitHub data into dashboard sections |
 | `src/ai/catalog.js` | every supported AI and how to invoke it; add new ones here |
 | `src/ai/providers/` | `anthropic.js` (official SDK), `openai.js` (any OpenAI-compatible API), `cli.js` (agents: headless chat and interactive sessions) |
-| `src/ai/actions.js` | what the AI menu suggests for each PR / issue state, and when a PR can merge |
+| `src/ai/actions.js` | what the AI menu suggests for each PR / issue state, when a PR can merge, and when its branch is safe to delete |
 | `src/ai/tasks.js` | the agent task prompts and the Home chat |
 | `src/ai/context.js` | the per-item chat context |
+| `src/comment.js` | comment attachments (files, image URLs) and the AI draft prompt |
 | `src/clones.js` | finds local clones from `.git/config` remotes |
-| `src/tui/` | Ink (React) screens: `setup` (first-run wizard), `home`, `list`, `handoff`, `settings`, `chat`, … |
+| `src/tui/` | Ink (React) screens: `setup` (first-run wizard), `home`, `list`, `handoff`, `menu`, `compose`, `settings`, `chat`, … |
 
 ## Contributing
 

@@ -12,7 +12,7 @@ import { copyToClipboard } from '../system.js';
 import { accent, ansiAccent } from '../theme.js';
 import { plainLines } from './format.js';
 import { Clickable } from './mouse.jsx';
-import { Keys, Rule, Spinner, TopBar, Viewport, editText, scrollLabel, useScroll } from './ui.jsx';
+import { Keys, Rule, Spinner, TextArea, TopBar, Viewport, editText, scrollLabel, textAreaHeight, useScroll } from './ui.jsx';
 
 const FIELDS = ['agent', 'task', 'workspace', 'notes'];
 
@@ -56,7 +56,10 @@ export function HandoffScreen({ item, initialTask, initialNotes = '', login, con
 
   const previewW = width - 3;
   const lines = useMemo(() => plainLines(prompt || 'loading…', previewW), [prompt, previewW]);
-  const previewH = Math.max(3, height - 3 - FIELDS.length - 2);
+  // Notes wrap under their label (column 16) instead of running off the edge.
+  const notesW = width - 16;
+  const notesH = textAreaHeight(notes, notesW, 5);
+  const previewH = Math.max(3, height - 3 - (FIELDS.length - 1) - notesH - 2);
   const scroll = useScroll(lines.length, previewH);
 
   const launch = () =>
@@ -197,12 +200,23 @@ export function HandoffScreen({ item, initialTask, initialNotes = '', login, con
       <Field i={0} label="Agent" value={agent?.name ?? '—'} tag={agentTag} hint={agentHint} select />
       <Field i={1} label="Task" value={TASKS[task]?.label ?? '…'} tag={taskTag} select />
       <Field i={2} label="Workspace" value={editingPath !== null ? `${editingPath}▌` : workspace || '—'} tag={editingPath !== null ? [] : workspaceTag} hint={workspaceHint} />
-      <Field
-        i={3}
-        label="Notes"
-        value={notes ? `${notes}${field === 3 ? '▌' : ''}` : field === 3 ? '▌' : ''}
-        tag={notes ? [] : [task === 'custom' ? 'type your prompt' : field === 3 ? 'type extra instructions' : 'optional']}
-      />
+      <Clickable onClick={() => setField(3)}>
+        <Box>
+          <Box width={16} flexShrink={0}>
+            <Text color={accent()} bold>{field === 3 ? ' ❯ ' : '   '}</Text>
+            <Text dimColor={field !== 3} bold={field === 3}>{'Notes'.padEnd(13)}</Text>
+          </Box>
+          <Box width={notesW} flexDirection="column">
+            <TextArea
+              value={notes}
+              width={notesW}
+              maxLines={5}
+              cursor={field === 3}
+              placeholder={task === 'custom' ? 'type your prompt' : field === 3 ? 'type extra instructions' : 'optional'}
+            />
+          </Box>
+        </Box>
+      </Clickable>
       <Text wrap="truncate">
         <Text color={accent()} bold>{' ── prompt '}</Text>
         <Text dimColor>{'─'.repeat(Math.max(0, width - 12))}</Text>

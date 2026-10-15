@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { accent } from '../theme.js';
 import { chatLines, plainLines } from './format.js';
 import { Clickable } from './mouse.jsx';
-import { Rule, Spinner, Viewport, editText, useScroll } from './ui.jsx';
+import { Rule, Spinner, TextArea, Viewport, editText, textAreaHeight, useScroll } from './ui.jsx';
 
 // Some models inline their reasoning as <think>…</think> instead of a separate field.
 function splitThinking(m) {
@@ -83,7 +83,11 @@ export function ChatPanel({ chat, system, presets, placeholder, inputHint, width
     return chatLines(chat.messages.map(splitThinking), textW, { showThinking });
   }, [showContext, system, chat.messages, showThinking, textW, placeholder]);
 
-  const bodyH = Math.max(2, height - 3); // [body], rule, presets, input
+  // The input grows a line at a time as the prompt wraps, up to a third of the panel.
+  const inputW = width - 3;
+  const inputMax = Math.max(1, Math.min(8, Math.floor(height / 3)));
+  const inputH = chat.streaming ? 1 : textAreaHeight(input, inputW, inputMax);
+  const bodyH = Math.max(2, height - 2 - inputH); // [body], rule, presets, input
   const chatScroll = useScroll(showContext ? 0 : lines.length, bodyH, { follow: true });
   const contextScroll = useScroll(showContext ? lines.length : 0, bodyH);
   const scroll = showContext ? contextScroll : chatScroll;
@@ -147,7 +151,7 @@ export function ChatPanel({ chat, system, presets, placeholder, inputHint, width
         </Text>
       </Clickable>
       <Clickable onClick={() => onFocus?.()}>
-        <Text wrap="truncate">
+        <Box>
           <Text color={active ? accent() : 'gray'} bold>
             {' › '}
           </Text>
@@ -155,13 +159,12 @@ export function ChatPanel({ chat, system, presets, placeholder, inputHint, width
             <Text>
               <Spinner /> <Text dimColor>thinking · esc stops</Text>
             </Text>
-          ) : input ? (
-            <Text>{input.length > width - 6 ? '…' + input.slice(-(width - 7)) : input}</Text>
           ) : (
-            <Text dimColor>{inputHint}</Text>
+            <Box width={inputW} flexDirection="column">
+              <TextArea value={input} width={inputW} maxLines={inputMax} cursor={active} placeholder={inputHint} />
+            </Box>
           )}
-          {active && !chat.streaming ? <Text inverse> </Text> : null}
-        </Text>
+        </Box>
       </Clickable>
     </Box>
   );

@@ -1,7 +1,9 @@
 // Headless TUI test: drives the real app against live gh data, with chat
 // pointed at a mock OpenAI-compatible server. Run with GH_PULSE_HOME set to a
 // scratch folder (npm test does) so your real config is never touched.
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { render } from 'ink-testing-library';
 import { App } from '../src/tui/index.jsx';
@@ -182,6 +184,49 @@ const sentBefore = requests.length;
 await press('enter');
 await until(() => requests.length > sentBefore, 'custom prompt sent to chat');
 console.log('custom prompt sent:', requests.at(-1).messages.at(-1).content);
+
+// A long custom prompt wraps onto more lines instead of running off the edge.
+await until((f) => !f.includes('esc stops'), 'custom prompt answered');
+await press('esc');
+await until((f) => f.includes('Custom prompt'), 'back to the issue menu');
+while (!selectedLine().includes('Custom prompt')) await press('down', 80);
+const long = 'please read every comment on this issue and tell me which ones still need an answer from me, oldest first';
+for (const ch of 'who else touched this? and ' + long) app.stdin.write(ch);
+await sleep(400);
+show('AI menu: long custom prompt wraps');
+const frame = app.lastFrame();
+if (!frame.includes('oldest first') || !frame.includes('who else touched')) throw new Error('custom prompt did not wrap:\n' + frame);
+
+// Comment composer: type, attach a markdown file, let the AI draft it, undo. Never posts.
+await press('ctrlU');
+while (!selectedLine().includes('Leave a comment')) await press('down', 80);
+await press('enter');
+await until((f) => f.includes('write your comment'), 'composer');
+for (const ch of 'First line') app.stdin.write(ch);
+await press('enter');
+for (const ch of 'second line') app.stdin.write(ch);
+await sleep(200);
+const md = path.join(process.env.GH_PULSE_HOME, 'note.md');
+fs.writeFileSync(md, '## From a file\n- point one\n');
+await press('tab');
+for (const ch of `"${md}"`) app.stdin.write(ch);
+await press('enter');
+await until((f) => f.includes('## From a file') && f.includes('added: note.md'), 'attached markdown');
+show('composer: typed + attached');
+await press('tab');
+for (const ch of 'thank them') app.stdin.write(ch);
+const drafts = requests.length;
+await press('enter');
+await until((f) => f.includes('AI draft ready'), 'AI draft');
+const asked = requests.at(-1).messages.at(-1).content;
+console.log('draft request has my text + instructions:', requests.length > drafts && asked.includes('thank them') && asked.includes('second line'));
+show('composer: AI draft');
+await press('\x1a'); // ctrl+z
+await until((f) => f.includes('second line') && f.includes('back to your text'), 'undo the AI draft');
+await press('esc');
+await until((f) => f.includes('esc again'), 'discard asks first');
+await press('esc');
+await until((f) => f.includes('Leave a comment'), 'back to the menu without posting');
 
 const sys = requests[0]?.messages[0]?.content ?? '';
 console.log('\n===== home chat request =====');

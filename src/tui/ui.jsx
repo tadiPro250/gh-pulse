@@ -2,6 +2,7 @@ import { Box, Text, useAnimation } from 'ink';
 import { useEffect, useRef, useState } from 'react';
 import { TONES } from '../render.js';
 import { accent } from '../theme.js';
+import { wrapInput } from './format.js';
 import { Clickable, keySequence, sendKeys } from './mouse.jsx';
 
 export const toneColor = (tone) => TONES[tone] ?? tone;
@@ -11,7 +12,7 @@ export function Line({ segs }) {
   return (
     <Text wrap="truncate">
       {segs.map((s, i) => (
-        <Text key={i} color={toneColor(s.color)} bold={s.bold} dimColor={s.dim} italic={s.italic}>
+        <Text key={i} color={toneColor(s.color)} bold={s.bold} dimColor={s.dim} italic={s.italic} inverse={s.inverse}>
           {s.text}
         </Text>
       ))}
@@ -156,21 +157,56 @@ export function TopBar({ item, label, right }) {
   );
 }
 
-// Minimal single-line text input, driven by the screen's useInput. Uses
-// functional updates so keys arriving in one chunk aren't lost.
+// Minimal text input, driven by the screen's useInput. Uses functional
+// updates so keys arriving in one chunk aren't lost. With `multiline`, ⏎ and
+// pasted newlines are kept and ctrl+u clears only the last line.
 // Returns true when the key edited the value.
-export function editText(setValue, input, key) {
+export function editText(setValue, input, key, { multiline = false } = {}) {
   if (key.backspace || key.delete) {
     setValue((v) => v.slice(0, -1));
     return true;
   }
   if (key.ctrl && input === 'u') {
-    setValue('');
+    setValue((v) => (multiline ? v.slice(0, v.lastIndexOf('\n') + 1) : ''));
+    return true;
+  }
+  if (multiline && key.return) {
+    setValue((v) => v + '\n');
     return true;
   }
   if (input && !key.ctrl && !key.meta && !key.return && !key.tab && !key.escape) {
-    setValue((v) => v + input.replace(/[\r\n]+/g, ' '));
+    setValue((v) => v + (multiline ? input.replace(/\r\n?/g, '\n') : input.replace(/[\r\n]+/g, ' ')));
     return true;
   }
   return false;
 }
+
+// A typed value that wraps onto more lines instead of running off the edge.
+// Shows the last `maxLines` lines so the end (and the cursor) stays in view.
+export function TextArea({ value, width, maxLines = 6, cursor = false, placeholder }) {
+  if (!value) {
+    return (
+      <Text wrap="truncate">
+        {placeholder ? <Text dimColor>{placeholder}</Text> : null}
+        {cursor ? <Text inverse> </Text> : null}
+      </Text>
+    );
+  }
+  const lines = wrapInput(value, width - 1); // a column for the cursor
+  const shown = lines.slice(-maxLines);
+  const hidden = lines.length - shown.length;
+  return (
+    <Box flexDirection="column">
+      {shown.map((l, i) => (
+        <Text key={hidden + i} wrap="truncate">
+          {i === 0 && hidden ? <Text dimColor>…</Text> : null}
+          <Text>{i === 0 && hidden ? l.slice(1) : l}</Text>
+          {cursor && i === shown.length - 1 ? <Text inverse> </Text> : null}
+        </Text>
+      ))}
+    </Box>
+  );
+}
+
+// How many rows a TextArea with this value will take.
+export const textAreaHeight = (value, width, maxLines = 6) => (value ? Math.min(maxLines, wrapInput(value, width - 1).length) : 1);

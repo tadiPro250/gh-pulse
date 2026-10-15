@@ -157,7 +157,7 @@ export function createMouseStdin({ stdin = process.stdin, stdout = process.stdou
 }
 
 // Clickable key hints: maps a Keys-bar label to the keystroke it stands for.
-const KEY_SEQUENCES = { '⏎': '\r', esc: '\x1b', tab: '\t', space: ' ', 'any key': '\x1b', 'ctrl+t': '\x14', 'ctrl+o': '\x0f', 'ctrl+l': '\x0c', pgup: '\x1b[5~', pgdn: '\x1b[6~' };
+const KEY_SEQUENCES = { '⏎': '\r', esc: '\x1b', tab: '\t', space: ' ', 'any key': '\x1b', 'ctrl+t': '\x14', 'ctrl+o': '\x0f', 'ctrl+l': '\x0c', 'ctrl+s': '\x13', 'ctrl+p': '\x10', 'ctrl+z': '\x1a', 'ctrl+b': '\x02', pgup: '\x1b[5~', pgdn: '\x1b[6~' };
 export function keySequence(label) {
   if (KEY_SEQUENCES[label]) return KEY_SEQUENCES[label];
   if (label.length === 1 && /[\x21-\x7e]/.test(label)) return label;

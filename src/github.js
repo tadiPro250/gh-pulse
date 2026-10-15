@@ -120,3 +120,61 @@ export const mergeArgs = (item, method) => ['pr', 'merge', String(item.number), 
 export function mergePr(item, method) {
   return gh(mergeArgs(item, method));
 }
+
+const prOrIssue = (item) => (item.kind === 'pr' ? 'pr' : 'issue');
+
+// The body goes over stdin, so long comments and any characters are fine.
+export function postComment(item, body) {
+  return gh([prOrIssue(item), 'comment', String(item.number), '-R', item.repo, '--body-file', '-'], body);
+}
+
+export function closePr(item) {
+  return gh(['pr', 'close', String(item.number), '-R', item.repo]);
+}
+
+// draft = true converts to a draft; false marks it ready for review.
+export const draftArgs = (item, draft) => ['pr', 'ready', String(item.number), '-R', item.repo, ...(draft ? ['--undo'] : [])];
+export function setDraft(item, draft) {
+  return gh(draftArgs(item, draft));
+}
+
+// Asking someone who already reviewed again is how GitHub re-requests a review.
+export const reReviewArgs = (item, logins) => [
+  'api', '-X', 'POST', `repos/${item.repo}/pulls/${item.number}/requested_reviewers`, '--silent',
+  ...logins.flatMap((l) => ['-f', `reviewers[]=${l}`]),
+];
+export function requestReview(item, logins) {
+  return gh(reReviewArgs(item, logins));
+}
+
+const BRANCH_QUERY = `
+query($owner: String!, $name: String!, $ref: String!) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
+    ref(qualifiedName: $ref) {
+      name
+      branchProtectionRule { id }
+      associatedPullRequests(states: OPEN, first: 5) { nodes { number } }
+    }
+  }
+}`;
+
+// What deleting a PR's head branch would touch: does it still exist, is it
+// the default or protected, and which open PRs still use it?
+export async function branchInfo(repo, branch) {
+  const [owner, name] = repo.split('/');
+  const { data } = await graphql(BRANCH_QUERY, { owner, name, ref: `refs/heads/${branch}` });
+  const r = data.repository;
+  return {
+    exists: Boolean(r?.ref),
+    isDefault: r?.defaultBranchRef?.name === branch,
+    isProtected: Boolean(r?.ref?.branchProtectionRule),
+    openPrs: r?.ref?.associatedPullRequests?.nodes.map((n) => n.number) ?? [],
+  };
+}
+
+// Deletes the branch on GitHub only; local clones are left alone.
+export const deleteBranchArgs = (repo, branch) => ['api', '-X', 'DELETE', `repos/${repo}/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`, '--silent'];
+export function deleteBranch(repo, branch) {
+  return gh(deleteBranchArgs(repo, branch));
+}

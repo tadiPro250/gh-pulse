@@ -73,10 +73,27 @@ export function configPath() {
   return CONFIG;
 }
 
-// { accounts: { [login]: { seen: { [id]: updatedAt }, lastRun } }, items: [...] }
+// { accounts: { [login]: { seen: { [id]: updatedAt }, lastRun } }, items: [...], archived: { [url]: archivedAt } }
 export function loadState() {
   const s = read(STATE, {});
-  return { accounts: s.accounts ?? {}, items: s.items ?? [] };
+  return { accounts: s.accounts ?? {}, items: s.items ?? [], archived: s.archived ?? {} };
+}
+
+// Archived items stay hidden until something new happens on them, like mail.
+export function isArchived(archived, row) {
+  const at = archived?.[row.url];
+  return Boolean(at) && !(row.updatedAt && new Date(row.updatedAt) > new Date(at));
+}
+
+// Archive (or with on = false, unarchive) by URL; returns the new map.
+// Entries older than half a year are dropped so the file stays small.
+export function setArchived(prev, urls, on, { persist = true } = {}) {
+  const cutoff = Date.now() - 180 * 864e5;
+  const next = Object.fromEntries(Object.entries(prev).filter(([, t]) => new Date(t) > cutoff));
+  const now = new Date().toISOString();
+  for (const url of urls) on ? (next[url] = now) : delete next[url];
+  if (persist) saveState({ ...loadState(), archived: next });
+  return next;
 }
 
 export function saveState(state) {

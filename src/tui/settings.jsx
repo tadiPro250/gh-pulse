@@ -23,7 +23,7 @@ const list = (v) => (v?.length ? v.join(', ') : '');
 const parseList = (s, sep = /[,\s]+/) => s.split(sep).map((x) => x.trim()).filter(Boolean);
 export const cycle = (values, current, d) => values[(values.indexOf(current) + d + values.length) % values.length] ?? values[0];
 
-export function SettingsScreen({ config, updateConfig, width, height, active, onAction, onSwitched, suspendTerminal, toast }) {
+export function SettingsScreen({ config, updateConfig, archivedCount = 0, width, height, active, onAction, onSwitched, suspendTerminal, toast }) {
   const [accounts, setAccounts] = useState(null);
   const [cursor, setCursor] = useState(0);
   const [editing, setEditing] = useState(null); // { id, label, value }
@@ -157,6 +157,14 @@ export function SettingsScreen({ config, updateConfig, width, height, active, on
     numeric('group', 'Group inbox by repo', [true, false], (c) => c.groupInbox, (c, v) => (c.groupInbox = v), (v) => (v ? 'on' : 'off'));
     numeric('mouse', 'Mouse', [true, false], (c) => c.mouse !== false, (c, v) => (c.mouse = v), (v) => (v ? 'on' : 'off'));
     R.at(-1).hint = 'off: drag to select text';
+    R.push({
+      kind: 'action',
+      id: 'unarchive',
+      label: 'Archived items',
+      value: archivedCount ? String(archivedCount) : 'none',
+      hint: archivedCount ? '⏎ show them all again' : 'archive from an item’s AI menu (a)',
+      enter: () => onAction('unarchiveAll'),
+    });
 
     header('Show');
     // Toggle `id` in the list at c[field]; `all` keeps the list in its canonical order.
@@ -206,7 +214,7 @@ export function SettingsScreen({ config, updateConfig, width, height, active, on
     R.push({ kind: 'info', label: `API keys: ${secretsPath()}` });
     R.push({ kind: 'action', id: 'setup', label: 'Run setup again', hint: 'the welcome walkthrough', enter: () => onAction('setup') });
     return R;
-  }, [config, accounts]);
+  }, [config, accounts, archivedCount]);
 
   const selectable = rows.map((r, i) => (r.enter || r.change || r.edit ? i : -1)).filter((i) => i >= 0);
   const pos = clamp(cursor, 0, selectable.length - 1);

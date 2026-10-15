@@ -43,6 +43,7 @@ export function buildView(data, { all = false, singleRepo = false, seen = null, 
       ref: singleRepo ? `#${node.number}` : `${node.repository.nameWithOwner}#${node.number}`,
       title: node.title,
       author: node.author?.login ?? 'ghost',
+      updatedAt: node.updatedAt,
       meta,
     };
   };
