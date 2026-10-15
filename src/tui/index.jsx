@@ -211,6 +211,9 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
       // …or a coding agent takes a task.
       case 'agent':
         return push({ type: 'handoff', item, task: extra?.task, notes: extra?.notes });
+      // The AI menu's unsaved prompt, kept on its stack entry (gone once the menu is closed).
+      case 'menuDraft':
+        return setStack((s) => s.map((x) => (x.type === 'menu' && x.item.url === item.url ? { ...x, draft: extra } : x)));
       case 'compose':
         return push({ type: 'compose', item });
       case 'commented':
@@ -301,7 +304,7 @@ export function App({ config: initialConfig, flagScope = null, flagSettings = {}
   else if (top?.type === 'ai')
     screen = <AiScreen key={`${top.item.url}:${top.prompt ?? ''}`} {...common} item={top.item} login={login} config={config} getDetail={getDetail} getDiff={getDiff} initialPrompt={top.prompt} providerId={top.providerId} />;
   else if (top?.type === 'menu')
-    screen = <MenuScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} focus={top.focus} archived={isArchived(archived, top.item)} toast={toast} />;
+    screen = <MenuScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} focus={top.focus} draft={top.draft} onDraft={(d) => onAction('menuDraft', top.item, d)} archived={isArchived(archived, top.item)} toast={toast} />;
   else if (top?.type === 'compose')
     screen = <ComposeScreen key={top.item.url} {...common} item={top.item} login={login} config={config} getDetail={getDetail} getDiff={getDiff} toast={toast} />;
   else if (top?.type === 'handoff')

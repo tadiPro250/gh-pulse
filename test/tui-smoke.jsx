@@ -188,10 +188,10 @@ console.log('custom prompt sent:', requests.at(-1).messages.at(-1).content);
 // A long custom prompt wraps onto more lines instead of running off the edge.
 await until((f) => !f.includes('esc stops'), 'custom prompt answered');
 await press('esc');
-await until((f) => f.includes('Custom prompt'), 'back to the issue menu');
-while (!selectedLine().includes('Custom prompt')) await press('down', 80);
+// Back in the menu, the prompt is still there and still selected, ready to edit.
+await until((f) => f.includes('Custom prompt') && selectedLine().includes('who else touched this?'), 'prompt kept on return');
 const long = 'please read every comment on this issue and tell me which ones still need an answer from me, oldest first';
-for (const ch of 'who else touched this? and ' + long) app.stdin.write(ch);
+for (const ch of ' and ' + long) app.stdin.write(ch);
 await sleep(400);
 show('AI menu: long custom prompt wraps');
 const frame = app.lastFrame();

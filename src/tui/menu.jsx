@@ -3,7 +3,7 @@
 // ready, a custom prompt that either the chat or an agent can take, and the
 // things you do yourself (comment, re-review, draft, close, delete branch, archive).
 import { Box, Text, useInput } from 'ink';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { actionsFor, branchDeletion, mergeStatus } from '../ai/actions.js';
 import { agentProviderId, chatProviderId, resolve } from '../ai/index.js';
 import { fetchHumanReviewers, fetchReviewThreads, summarizeChecks } from '../detail.js';
@@ -42,13 +42,13 @@ function statusSegments(item, d, login) {
   return segs;
 }
 
-export function MenuScreen({ item, login, config, getDetail, focus, archived, width, height, active, onAction, toast }) {
+export function MenuScreen({ item, login, config, getDetail, focus, draft, onDraft, archived, width, height, active, onAction, toast }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState(null);
   const [threads, setThreads] = useState([]);
   const [cursor, setCursor] = useState(0);
-  const [custom, setCustom] = useState('');
-  const [customMode, setCustomMode] = useState('chat'); // 'chat' | 'agent'
+  const [custom, setCustom] = useState(draft?.custom ?? '');
+  const [customMode, setCustomMode] = useState(draft?.mode ?? 'chat'); // 'chat' | 'agent'
   const [methods, setMethods] = useState(null);
   const [methodIdx, setMethodIdx] = useState(0);
   const [confirming, setConfirming] = useState(null); // option id waiting for a second ⏎
@@ -80,13 +80,24 @@ export function MenuScreen({ item, login, config, getDetail, focus, archived, wi
   useEffect(() => {
     if (hasMerge && !methods) mergeMethods(item.repo).then(setMethods, () => setMethods(['merge']));
   }, [hasMerge]);
-  // Opened with "merge" (m on a ready PR): land on it once it appears.
+  // Land on the row we left (back from the chat or agent), or on "merge" when
+  // opened with m on a ready PR, once it appears. Only once, so moving isn't undone.
+  const landOn = draft?.selId ?? focus;
+  const landed = useRef(!landOn);
   useEffect(() => {
-    if (focus && options.some((o) => o.id === focus)) setCursor(options.findIndex((o) => o.id === focus));
-  }, [focus, options.length]);
+    if (landed.current || !options.some((o) => o.id === landOn)) return;
+    landed.current = true;
+    setCursor(options.findIndex((o) => o.id === landOn));
+  }, [landOn, options.length]);
 
   const pos = clamp(cursor, 0, options.length - 1);
   const sel = options[pos];
+
+  // This screen unmounts while the chat or agent is on top; hand the prompt
+  // back to its stack entry so it's still here on return.
+  const latest = useRef(null);
+  latest.current = { custom, mode: customMode, selId: sel?.id };
+  useEffect(() => () => onDraft?.(latest.current), []);
   const method = methods?.[methodIdx] ?? 'squash';
   const chatName = (() => {
     const id = chatProviderId(config);
